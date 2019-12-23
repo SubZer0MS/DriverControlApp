@@ -15,9 +15,9 @@ using tstring = std::string;
 using tsstream = std::stringstream;
 #endif
 
-typedef struct _Args
+typedef struct _Arg
 {
-	_Args() :
+	_Arg() :
 		m_hasValue(false),
 		m_parsed(false)
 	{}
@@ -28,12 +28,13 @@ typedef struct _Args
 	bool m_hasValue;
 	tstring m_value;
 	bool m_parsed;
-} Args, *pArgs;
+	std::vector<tstring> m_fixedValues;
+} Arg, *pArg;
 
 class ArgsHelper
 {
-	std::vector<std::unique_ptr<Args>> m_args;
-	std::map<tstring, pArgs> m_argNames;
+	std::vector<std::unique_ptr<Arg>> m_args;
+	std::map<tstring, pArg> m_argNames;
 	bool m_parsed = false;
 	int m_flagCount = 0;
 	tstring m_progName;
@@ -44,10 +45,10 @@ class ArgsHelper
 
 public:
 
-	void arg(tstring, tstring, tstring, bool);	
+	void arg(tstring, tstring, tstring, bool, std::vector<tstring>);	
 	bool parseArgs(int, LPTSTR*);
 	bool flag(tstring, tstring&);
-	bool exists(tstring flag);
+	bool exists(tstring);
 	bool textArg(uint32_t, tstring&);
 	tstring help();
 

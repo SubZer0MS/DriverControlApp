@@ -5,23 +5,25 @@ void ArgsHelper::arg(
 	tstring sArg,
 	tstring lArg,
 	tstring desc,
-	bool hasVal)
+	bool hasVal,
+	std::vector<tstring> fixedValues)
 {
-	std::unique_ptr<Args> arg(new Args);
+	std::unique_ptr<Arg> arg(new Arg);
 	arg->m_sArg = sArg;
 	arg->m_lArg = lArg;
 	arg->m_desc = desc;
 	arg->m_hasValue = hasVal;
+	arg->m_fixedValues = fixedValues;
 	m_args.push_back(std::move(arg));
 
 	if (!sArg.empty())
 	{
-		m_argNames.insert(std::pair<tstring, pArgs>(sArg, m_args.back().get()));
+		m_argNames.insert(std::pair<tstring, pArg>(sArg, m_args.back().get()));
 	}
 
 	if (!lArg.empty())
 	{
-		m_argNames.insert(std::pair<tstring, pArgs>(lArg, m_args.back().get()));
+		m_argNames.insert(std::pair<tstring, pArg>(lArg, m_args.back().get()));
 	}
 }
 
@@ -30,13 +32,26 @@ bool ArgsHelper::parseArgs(int argc, LPTSTR* argv)
 	m_progName = tstring(argv[0]);
 	bool expectValue = false;
 
-	std::map<tstring, pArgs>::const_iterator it;
+	std::map<tstring, pArg>::const_iterator it;
 	for (int i = 1; i < argc; i++)
 	{
 		tstring entry(argv[i]);
 
 		if (expectValue)
 		{
+			if (it->second->m_fixedValues.size() > 0)
+			{
+				if (std::find(it->second->m_fixedValues.begin(), it->second->m_fixedValues.end(), entry) == it->second->m_fixedValues.end())
+				{
+					tsstream ss;
+					ss << _T("Flag ") << it->second->m_sArg << _T(" has invalid value passed in.") << std::endl;
+					m_hasError = true;
+					m_error = ss.str();
+
+					return false;
+				}
+			}
+
 			it->second->m_value = entry;
 			expectValue = false;
 		}

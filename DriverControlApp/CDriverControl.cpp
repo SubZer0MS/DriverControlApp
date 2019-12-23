@@ -313,7 +313,7 @@ DWORD CDriverControl::DoAllocatePool(IN ULONG type, IN ULONGLONG size, IN LPCWST
 		utils::PrintError(_T(__FUNCTION__), _T("DeviceIoControl"));
 	}
 
-	return bytesRead;
+	return status;
 }
 
 DWORD CDriverControl::DoFreePool(IN ULONG type, IN LPCWSTR szBuffer)
@@ -354,5 +354,5 @@ DWORD CDriverControl::DoFreePool(IN ULONG type, IN LPCWSTR szBuffer)
 		utils::PrintError(_T(__FUNCTION__), _T("DeviceIoControl"));
 	}
 
-	return bytesRead;
+	return status;
 }
