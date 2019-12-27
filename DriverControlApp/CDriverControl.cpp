@@ -25,6 +25,13 @@ DWORD CDriverControl::Initialize()
 
 	DWORD status = DRV_SUCCESS;
 
+	STARTUPINFO si;
+	PROCESS_INFORMATION pi;
+	ZeroMemory(&si, sizeof(si));
+	si.cb = sizeof(si);
+	ZeroMemory(&pi, sizeof(pi));
+	WCHAR commandLine[MAX_PATH];
+
 	SC_HANDLE hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
 	if (hSCManager == NULL)
 	{
@@ -59,15 +66,42 @@ DWORD CDriverControl::Initialize()
 			goto CleanUp;
 		}
 
-		if (!DeleteService(m_hService))
+		CloseServiceHandle(m_hService);
+
+		// if the program is started again after it closed and unloaded the driver and deleted the service,
+		// depending on whether SCM has already been refreshed somehow (using sc.exe query) for example,
+		// then it might be that the service is currently still just marked for deletion and if we try to delete
+		// it again, it will just say that it has already been marged for deletion
+		// we need to do a query process from an external process or else while doing it, we will still have a handle open
+		// we'll simply use sc.exe
+
+		StringCchPrintf(commandLine, MAX_PATH, _T("sc.exe query %s"), m_lpServiceName);
+
+		if (!CreateProcess(
+			NULL,			// Process name
+			commandLine,	// Command line
+			NULL,			// Process handle not inheritable
+			NULL,			// Thread handle not inheritable
+			FALSE,			// Set handle inheritance to FALSE
+			NULL,			// No creation flags
+			NULL,			// Use parent's environment block
+			NULL,			// Use parent's starting directory 
+			&si,			// Pointer to STARTUPINFO structure
+			&pi				// Pointer to PROCESS_INFORMATION structure
+		))
 		{
-			utils::PrintError(_T(__FUNCTION__), _T("DeleteService"));
+			utils::PrintError(_T(__FUNCTION__), _T("CreateProcess"));
 			status = DRV_ERROR_CREATE;
 			goto CleanUp;
 		}
 
-		CloseServiceHandle(m_hService);
+		// Wait until child process exits.
+		WaitForSingleObject(pi.hProcess, INFINITE);
 
+		// Close process and thread handles. 
+		CloseHandle(pi.hProcess);
+		CloseHandle(pi.hThread);
+		
 		m_hService = CreateService(
 			hSCManager,
 			m_lpServiceName,
@@ -149,7 +183,7 @@ DWORD CDriverControl::StartDrv()
 	int strLen;
 	LPTSTR szDestination;
 
-	if (StartService(m_hService, 0, NULL) == NULL)
+	if (!StartService(m_hService, 0, NULL))
 	{
 		utils::PrintError(_T(__FUNCTION__), _T("StartService"));
 		status = DRV_ERROR_START;
@@ -227,7 +261,7 @@ DWORD CDriverControl::UnloadDrv()
 	{
 		return DRV_SUCCESS;
 	}
-	if (IsStarted() && StopDrv() != DRV_SUCCESS)
+	if (StopDrv() != DRV_SUCCESS)
 	{
 		return DRV_ERROR_UNLOAD;
 	}
@@ -243,8 +277,6 @@ DWORD CDriverControl::UnloadDrv()
 		goto CleanUp;
 	}
 
-	CloseServiceHandle(m_hService);
-
 	if (!DeleteFile(m_lpFilePath))
 	{
 		// this isn't considered fatal, but we should notify the user
@@ -259,6 +291,7 @@ CleanUp:
 	if (m_hService)
 	{
 		CloseServiceHandle(m_hService);
+		m_hService = NULL;
 	}
 
 	return status;
