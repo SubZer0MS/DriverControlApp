@@ -291,8 +291,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             TCHAR pTagBuffer[MAX_TEXTBOX_LENGTH + 1];
             GetWindowText(hWndTextboxTag, pTagBuffer, sizeof(pTagBuffer));
 
-            TCHAR pSizeBuffer[MAX_TEXTBOX_LENGTH + 1];
-            GetWindowText(hWndTextboxTag, pSizeBuffer, sizeof(pSizeBuffer));
+            TCHAR pSizeBuffer[MAX_SIZEBOX_LENGTH + 1];
+            GetWindowText(hWndTextboxSize, pSizeBuffer, sizeof(pSizeBuffer));
 
             int wmId = LOWORD(wParam);
 

@@ -30,12 +30,12 @@ DriverEntry(
 	RtlInitUnicodeString(&ntDeviceName, NT_DEVICE_NAME);
 
 	status = IoCreateDevice(
-		DriverObject,					// Our Driver Object
-		0,								// We don't use a device extension
-		&ntDeviceName,					// Device name 
-		APPKRNL_TYPE,					// Device type
-		FILE_DEVICE_SECURE_OPEN,		// Device characteristics
-		FALSE,							// Not an exclusive device
+		DriverObject,				// Our Driver Object
+		0,							// We don't use a device extension
+		&ntDeviceName,				// Device name 
+		APPKRNL_TYPE,				// Device type
+		FILE_DEVICE_SECURE_OPEN,	// Device characteristics
+		FALSE,						// Not an exclusive device
 		&deviceObject
 	);
 
