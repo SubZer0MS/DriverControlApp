@@ -25,13 +25,6 @@ DWORD CDriverControl::Initialize()
 
 	DWORD status = DRV_SUCCESS;
 
-	STARTUPINFO si;
-	PROCESS_INFORMATION pi;
-	ZeroMemory(&si, sizeof(si));
-	si.cb = sizeof(si);
-	ZeroMemory(&pi, sizeof(pi));
-	WCHAR commandLine[MAX_PATH];
-
 	SC_HANDLE hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
 	if (hSCManager == NULL)
 	{
@@ -56,7 +49,12 @@ DWORD CDriverControl::Initialize()
 		NULL
 	);
 
-	if (m_hService == NULL)
+	// if the program is started again after it closed and unloaded the driver and deleted the service,
+	// depending on whether SCM has already been refreshed somehow (using sc.exe query) for example,
+	// then it might be that the service is currently still just marked for deletion and if we try to delete
+	// it again, it will just say that it has already been marged for deletion
+	// we need to do a query process from an external process again, close the handle and wait a bit for SCM
+	if (m_hService == NULL && GetLastError() == ERROR_SERVICE_MARKED_FOR_DELETE)
 	{
 		m_hService = OpenService(hSCManager, m_lpServiceName, SERVICE_ALL_ACCESS);
 		if (m_hService == NULL)
@@ -66,41 +64,20 @@ DWORD CDriverControl::Initialize()
 			goto CleanUp;
 		}
 
-		CloseServiceHandle(m_hService);
-
-		// if the program is started again after it closed and unloaded the driver and deleted the service,
-		// depending on whether SCM has already been refreshed somehow (using sc.exe query) for example,
-		// then it might be that the service is currently still just marked for deletion and if we try to delete
-		// it again, it will just say that it has already been marged for deletion
-		// we need to do a query process from an external process or else while doing it, we will still have a handle open
-		// we'll simply use sc.exe
-
-		StringCchPrintf(commandLine, MAX_PATH, _T("sc.exe query %s"), m_lpServiceName);
-
-		if (!CreateProcess(
-			NULL,			// Process name
-			commandLine,	// Command line
-			NULL,			// Process handle not inheritable
-			NULL,			// Thread handle not inheritable
-			FALSE,			// Set handle inheritance to FALSE
-			NULL,			// No creation flags
-			NULL,			// Use parent's environment block
-			NULL,			// Use parent's starting directory 
-			&si,			// Pointer to STARTUPINFO structure
-			&pi				// Pointer to PROCESS_INFORMATION structure
-		))
+		SERVICE_STATUS ss;
+		if (!QueryServiceStatus(m_hService, &ss))
 		{
-			utils::PrintError(_T(__FUNCTION__), _T("CreateProcess"));
+			utils::PrintError(_T(__FUNCTION__), _T("QueryServiceStatus"));
 			status = DRV_ERROR_CREATE;
 			goto CleanUp;
 		}
 
-		// Wait until child process exits.
-		WaitForSingleObject(pi.hProcess, INFINITE);
+		CloseServiceHandle(m_hService);
+		m_hService = NULL;
 
-		// Close process and thread handles. 
-		CloseHandle(pi.hProcess);
-		CloseHandle(pi.hThread);
+		// after closing the handle, give it 100 ms until SCM really removes
+		// the service entry that was marked for deletion in the registry
+		Sleep(100);
 		
 		m_hService = CreateService(
 			hSCManager,
