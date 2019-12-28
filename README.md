@@ -8,3 +8,5 @@ The driver is included and it is a pretty good (start) example of how to write a
 Start it directly or run it with "/?" from a CMD to get the Usage information (available paramters).
 
 I'll probably extend this more in the future, but this is the current functionality. Enjoy! :D
+
+PS: You will need to set your machine in test mode unless you have a valid public official signed certificate: bcdedit /set testsigning on
